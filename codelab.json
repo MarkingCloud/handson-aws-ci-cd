@@ -1,0 +1,23 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2020-11-30T13:27:43Z",
+  "id": "handson-aws-ci-cd",
+  "duration": 2,
+  "title": "AWS ハンズオン CI/CD 入門",
+  "authors": "arai.ya",
+  "summary": "AWS ハンズオン CI/CD 入門",
+  "source": "1t3L24DffAR2iG_aPZIxKIve3PeqO_nQTLGb45ec1X00",
+  "theme": "aws",
+  "status": [
+    "draft"
+  ],
+  "category": [
+    "AWS"
+  ],
+  "tags": [],
+  "feedback": "https://twitter.com/markingcloud",
+  "url": "handson-aws-ci-cd"
+}

@@ -1,0 +1,309 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>AWS ハンズオン CI/CD 入門</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="handson-aws-ci-cd"
+                  title="AWS ハンズオン CI/CD 入門"
+                  environment="web"
+                  feedback-link="https://twitter.com/markingcloud">
+    
+      <google-codelab-step label="はじめに" duration="1">
+        <h2 is-upgraded>概要</h2>
+<p>このハンズオンでは、AWS で CI/CD を実践してみることを通して、</p>
+<ul>
+<li>CI/CD とは何か</li>
+<li>どう実現していくのか</li>
+</ul>
+<p>を学んでいきます。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="講師紹介" duration="1">
+        <p>名前：荒井 泰貴</p>
+<p>iOS アプリエンジニアです。</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="CI/CD とは？" duration="0">
+        <p>Continuous Integration / Continuous Delivery の略。</p>
+<p>継続的インテグレーション / 継続的デリバリー。</p>
+<p>ビルド、テスト、リリースを自動化することで、リリーススピードを上げ、ビジネス戦略を頻繁に反映し、ソフトウェアの競争力を向上させることを目的としています。</p>
+<h2 is-upgraded>CI/CD サービスの例</h2>
+<ul>
+<li>Jenkins</li>
+<li>Circle CI</li>
+<li>Travis CI</li>
+</ul>
+<p>AWS では Code~ 系がそれにあたります。</p>
+<h2 is-upgraded>どんな場合に CI/CD を実践するか</h2>
+<ul>
+<li>ステージング/リリース環境など、複数の環境やアプリケーションが存在するとき</li>
+<li>複数人のチームで開発をしているとき</li>
+<li>特にローカルではなくリモートでチームを組んでいるとき</li>
+<li>手動で動かして、確認して、... がメンドクサイと感じるとき</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="ハンズオン概要" duration="0">
+        <p>今回のハンズオン全体の概念図です。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/8fe0aefe3b1cd916.png"></p>
+<p>ポイントは、</p>
+<ol type="1" start="1">
+<li>ソースコードのコミット→ビルド→デプロイを自動化する CodePipeline</li>
+<li>1 によりデプロイされる対象は Lambda Function</li>
+<li>1, 2 全体を CloudFormation でさくっと構築</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="事前準備" duration="0">
+        <h2 is-upgraded>この章でやること</h2>
+<ul>
+<li>Git 操作用の IAM ユーザーを作成します</li>
+<li>作成したユーザーの git 認証情報を取得します</li>
+</ul>
+<h2 is-upgraded>まずは AWS へログイン</h2>
+<p><a href="https://console.aws.amazon.com/" target="_blank">AWS マネジメントコンソール</a> へログインします。</p>
+<p>リージョンは東京（ap-northeast-1）に設定します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/a3fff9f2d5bbd1aa.png"></p>
+<h2 is-upgraded>IAM ユーザーの作成</h2>
+<p><a href="https://console.aws.amazon.com/iam/home?region=ap-northeast-1" target="_blank">IAM コンソール</a> へ移動します。</p>
+<p>左メニューから「ユーザー」を選択します。</p>
+<p>「ユーザーを追加」を選択し、以下の通りにユーザーを作成します。</p>
+<h3 is-upgraded>ユーザー詳細の設定</h3>
+<ul>
+<li>ユーザー名：任意</li>
+</ul>
+<h3 is-upgraded>AWS アクセスの種類を選択</h3>
+<ul>
+<li>アクセスの種類：AWS マネジメントコンソールへのアクセス</li>
+</ul>
+<p>「次のステップ」を選択します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/fa211b853921a3d4.png"></p>
+<h3 is-upgraded>アクセス許可の設定</h3>
+<p>IAM ユーザーにポリシーをアタッチします。</p>
+<ul>
+<li>「既存のポリシーを直接アタッチ」を選択</li>
+<li>「PowerUserAccess」にチェック（※検索窓を使うと簡単に見つけられます！）</li>
+</ul>
+<p class="image-container"><img style="width: 624.00px" src="img/6738f3565b165c41.png"></p>
+<p>「次のステップ」を選択します。</p>
+<h3 is-upgraded>タグの追加 (オプション)</h3>
+<ul>
+<li>タグは不要なので、そのまま「次のステップ」を選択します。</li>
+</ul>
+<p class="image-container"><img style="width: 452.35px" src="img/d19de462d39a6ea7.png"></p>
+<h3 is-upgraded>確認</h3>
+<ul>
+<li>内容を確認し、「ユーザーの作成」を選択します。</li>
+</ul>
+<p class="image-container"><img style="width: 562.44px" src="img/3d55d0d2efba90a7.png"></p>
+<h2 is-upgraded>Git 認証情報の取得</h2>
+<p>IAM コンソール &gt; ユーザーから、作成したユーザーを選択します。</p>
+<p>「認証情報」タブを選択します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/d15ee655cfc4d956.png"></p>
+<p>「AWS CodeCommit の HTTPS Git 認証情報」の「認証情報を生成」を選択します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/1589c7fcf787d520.png"></p>
+<p>「証明書のダウンロード」を選択します。ダウンロードした証明書（CSV ファイル）はあとで使います！</p>
+<p class="image-container"><img style="width: 624.00px" src="img/dbd42fbe0ed72214.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="骨組み作成" duration="0">
+        <h2 is-upgraded>この章でやること</h2>
+<ul>
+<li>CI/CD の各パーツを作っていきます</li>
+<li>ただし、一つ一つやっていると時間がかかるので、CloudFormation で一括作成します。</li>
+</ul>
+<p>以下の URL から、CloudFormation のテンプレートを含んだ zip ファイルをダウンロードします。</p>
+<p><a href="https://gist.github.com/kappa0923/1cea3b6f6edd475bfa741b52878edc72/archive/aceb9cb9754d1d2714420fea0a028beb83f10b7e.zip" target="_blank"><paper-button class="colored" raised>Zip ファイルをダウンロード</paper-button></a></p>
+<p>ダウンロードした zip ファイルは展開しておきましょう。</p>
+<p>中には以下の3つのファイルがあります。</p>
+<ul>
+<li>index.js</li>
+<li>template-lambda.yml</li>
+<li>template.yml</li>
+</ul>
+<h2 is-upgraded>CloudFormation スタック作成</h2>
+<p><a href="https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1" target="_blank">CloudFormation コンソール</a> へ移動します。</p>
+<p>「スタックの作成」をクリックします。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/355be397c78eae0a.png"></p>
+<h3 is-upgraded>スタックの作成</h3>
+<p>「前提条件 - テンプレートの準備」の「テンプレートの準備完了」を選択します。</p>
+<p>「テンプレートの指定」の「テンプレートファイルのアップロード」を選択します。</p>
+<p>「ファイルの選択」から、先ほどダウンロードした「template.yml」を選択します。</p>
+<p>「次へ」を選択します。</p>
+<h3 is-upgraded>スタックの詳細を指定</h3>
+<p>以下の通り、スタックを作成します。</p>
+<ul>
+<li>スタックの名前：任意の名前</li>
+<li>ArtifactBucketName: 任意の名前（一意な名前になるように。※アンダーバーはつかえません！）</li>
+<li>BuildDockerImage: デフォルトのまま</li>
+<li>RepositoryName: 任意の名前に変更して OK</li>
+</ul>
+<p class="image-container"><img style="width: 624.00px" src="img/ff21be73e6ab69b7.png"></p>
+<p>「次へ」を選択します。</p>
+<h3 is-upgraded>スタックオプションの設定</h3>
+<p>設定不要です。</p>
+<p>そのまま「次へ」</p>
+<h3 is-upgraded>レビュー</h3>
+<p>画面の一番下にある IAM リソースの変更の承認にチェックを入れます。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/32ca3a4c2a800605.png"></p>
+<p>「スタックの作成」を実行します。</p>
+<p>ステータスが「CREATE_COMPLETE」になれば OK です。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/87bef42759e13f2c.png"></p>
+<h2 is-upgraded>CloudFormation スタックを確認</h2>
+<p>CloudFormation スタックにより CodePipeline が作成されていることを確認しましょう。</p>
+<p><a href="https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines?region=ap-northeast-1" target="_blank">CodePipeline コンソール</a> に移動します。</p>
+<p>パイプラインが作成されていることを確認します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/ee04e26847e53a49.png"></p>
+<p>ただし、パイプラインの実行は失敗しています。</p>
+<p>（まだ CodeCommit が空であるため）</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="デプロイ準備" duration="0">
+        <h2 is-upgraded>この章でやること</h2>
+<ul>
+<li>作成された CodeCommit のリポジトリをローカルにクローンして、CodeCommit にコードをコミットする準備をします。</li>
+</ul>
+<h2 is-upgraded>CodeCommit リポジトリをクローン</h2>
+<p>事前に取得した git 認証情報を使って、先ほど CloudFormation で作成した CodeCommit リポジトリをクローンしましょう。</p>
+<p><a href="https://ap-northeast-1.console.aws.amazon.com/codesuite/codecommit/repositories?region=ap-northeast-1" target="_blank">CodeCommit コンソール</a> を開きます。</p>
+<p>作成したリポジトリを選択し、詳細を開きます。</p>
+<p>右上の「URL のクローン &gt; HTTPS のクローン」を選択します。</p>
+<p>（リポジトリの URL がコピーされます。）</p>
+<p>ローカルの Git Bash などで以下のコマンドを実行します。</p>
+<pre>git clone リポジトリのURL</pre>
+<p>Username, Password の入力を求められるので、ダウンロードした git 認証情報に記載されている情報を入力します。</p>
+<p>ローカルに空のフォルダが生成されれば成功です。</p>
+<p>リポジトリが存在しないとエラーが出る場合は、Keychain に古い（他の）CodeCommit 認証情報が保存されていないか確認してください。（削除しても良い場合は削除するとうまくいきます）</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="デプロイ実行" duration="0">
+        <h2 is-upgraded>この章でやること</h2>
+<ul>
+<li>CodeCommit に Lambda のコードをプッシュします</li>
+</ul>
+<p>→ Lambda がデプロイされます</p>
+<ul>
+<li>Lambda が実行できることを確認します。</li>
+</ul>
+<h2 is-upgraded>CodeCommit に Lambda のコードをプッシュ</h2>
+<p>ダウンロードした zip 内のファイルから</p>
+<ul>
+<li>index.js</li>
+<li>template-lambda.yml</li>
+</ul>
+<p>を CodeCommit をクローンしてできた空のフォルダに移動します。</p>
+<p>Git でコミット、プッシュします。</p>
+<pre>git add .
+git commit -m &#34;initial commit.&#34;
+git push -u origin HEAD</pre>
+<p>CodePipeline をみると、デプロイが実行されていくのが確認できます。</p>
+<h2 is-upgraded>Lambda 実行確認</h2>
+<p><a href="https://ap-northeast-1.console.aws.amazon.com/lambda/home?region=ap-northeast-1" target="_blank">Lambda コンソール</a> を開きます。</p>
+<p>関数一覧から、作成した関数を選択します。</p>
+<p>右上の「テストイベントの選択」から「テストイベントの設定」を選択します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/6e832c7dba0c3237.png"></p>
+<p>任意のイベント名を設定し、作成します。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/e0fdefc479ebddd4.png"></p>
+<p>右上の「テストイベントの選択」から作成したテストイベントを選択し、「テスト」を選択します。</p>
+<p>実行結果が出力されます。</p>
+<p class="image-container"><img style="width: 624.00px" src="img/ea9e077506178fd0.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="まとめ" duration="0">
+        <p>AWS の機能を使って CI/CD 環境を構築することができました！👏</p>
+<p>最初は手間が多いですが、一度構築すれば、ビルド・デプロイの手間を減らすことができます。</p>
+<p>AWS Code 兄弟は、他の AWS サービスとの親和性が高く、ポチポチ選ぶだけで設定できることも多いです。</p>
+<h2 is-upgraded>アンケート</h2>
+<p>最後にアンケートがありますので、より良い勉強会作りのためにご協力お願いします！</p>
+<p><a href="https://docs.google.com/forms/d/e/1FAIpQLSeNDAQULC-QtTq93aSUmjQKz0G_2Q3IAkpvxklXQbhxt4cOaw/viewform" target="_blank"><paper-button class="colored" raised>アンケートに回答</paper-button></a></p>
+<aside class="special"><h3 is-upgraded><strong>Twitterやってます！</strong></h3>
+<p>MarkingCloudメンバーで <a href="https://twitter.com/MarkingCloud" target="_blank">Twitter</a> をやってます。</p>
+<p>クラウド関連の情報や、その他(キングダム、左利きのエレンなど)を不定期でつぶやきます。</p>
+<p>よろしければのぞいてみてください！(フォローもお願いします！)</p>
+<h3 is-upgraded><strong>(株)アイソルートのHPです！</strong></h3>
+<p>運営スタッフが所属する<a href="https://www.isoroot.jp/" target="_blank">(株)アイソルートのHP</a>です。</p>
+<p>一緒にお仕事できそうな方、転職を考えている方など、</p>
+<p>よろしければのぞいてみて下さい！</p>
+<h3 is-upgraded><strong>ブログやってます！</strong></h3>
+<p>運営スタッフの所属する<a href="https://www.isoroot.jp/blog/" target="_blank">(株)アイソルートの仲間たちが書いてるブログ</a>です。</p>
+<p>以下のような雑多なテーマでいろいろ書いています。</p>
+<p>よろしければのぞいてみてください！</p>
+<ul>
+<li>Amazon Web Services(3)</li>
+<li>DevOps(9)</li>
+<li>Google Cloud Platform(33)</li>
+<li>Microsoft Azure(4)</li>
+<li>Web開発(7)</li>
+<li>アジャイル(4)</li>
+<li>インフラ(9)</li>
+<li>スマートスピーカー(3)</li>
+<li>チャットボット(3)</li>
+<li>ネットワーク(7)</li>
+<li>モバイル開発(20)</li>
+<li>レポート(8)</li>
+<li>記事(5)</li>
+</ul>
+<h3 is-upgraded><strong>コミュトレ！</strong></h3>
+<p>運営スタッフの所属する(株)アイソルートが提供している<a href="https://commu-training.isoroot.jp/" target="_blank">「コミュトレ」</a>という教育サービスです！</p>
+<p>社会人のコミュニケーション能力のトレーニングを行うサービスです。</p>
+<p>面白いサービスですのでぜひ見てみて下さい！</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="後始末" duration="0">
+        <p>不要なリソースが残っているとお金がかかるので、不要になったら削除しましょう。</p>
+<p>作成された S3 バケットの中身を空にしておきます。</p>
+<p>Lambda の CloudFormation スタックを削除します。</p>
+<p>最初に作成した CloudFormation のスタックを削除します。</p>
+<p>（順序を逆にすると、IAM ロールが先に削除され、デッドロックされます...）</p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
